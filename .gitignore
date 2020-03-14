@@ -1,0 +1,8 @@
+# ignore token file
+token
+
+# ignore python cache
+__pycache__/
+
+# ignore Vim's temporally cache
+*.swp
