@@ -1,3 +1,5 @@
+import asyncio
+
 from client import UnifiedCLIClient
 
 
@@ -7,7 +9,9 @@ def main():
             TOKEN = f.read()
 
         client = UnifiedCLIClient(TOKEN)
-        client.launch()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(client.launch())
+
         client.screen.terminate()
 
         print("123")

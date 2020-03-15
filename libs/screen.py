@@ -93,5 +93,16 @@ class Screen():
 
         self.console.refresh()
 
+    def put_x_center(self, y, string):
+        """
+        画面の横中央に文字列を描画する。
+        :param y: Y座標。
+        :param string: 文字列。
+        """
+        width, height = self.get_size()
+        x = (width - len(string)) // 2
+
+        self.put_str((x, y), string)
+
     def clear(self):
         self.console.clear()
