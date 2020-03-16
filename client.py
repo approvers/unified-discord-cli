@@ -29,6 +29,8 @@ class UnifiedCLIClient(discord.Client):
         atexit.register(self.terminate)
 
     async def launch(self):
+        self.screen.initialize()
+
         greetings = \
             "   U n i f i e d   C L I   \n" + \
             "D i s c o r d   V i e w e r\n"
@@ -73,6 +75,7 @@ class UnifiedCLIClient(discord.Client):
         write_win = self.screen.create_window((0, root_h - 3), (root_w, 3))
 
         write_win.nodelay(True)
+        write_win.keypad(True)
 
         self.screen.console.clear()
         self.screen.console.refresh()
@@ -80,35 +83,54 @@ class UnifiedCLIClient(discord.Client):
         inputted = ""
         input_cursor_x = 0
 
+        channels = self.get_available_channel()
+        sel_chn_idx = 0
+
         i = 0
         while True:
 
+            # -------------------------
+            #        Text Input
+            # -------------------------
+
+            # ----- Normal Input
             typed = bytearray()
+            control_key = False
             while True:
                 input_chr = write_win.getch()
                 if input_chr == curses.ERR:
                     break
+
+                if not (0 <= input_chr <= 256):
+                    control_key = True
+                    break
                 typed.append(input_chr)
 
-            if len(typed) > 0:
-                text = typed.decode()
-                if curses.ascii.DEL in typed:
+            # ---- Key Binding
+            if control_key:
+                if input_chr == curses.KEY_UP and sel_chn_idx > 0:
+                    sel_chn_idx -= 1
+                elif input_chr == curses.KEY_DOWN and sel_chn_idx < len(channels) - 1:
+                    sel_chn_idx += 1
+                elif input_chr == curses.KEY_BACKSPACE:
+                    input_cursor_x -= charutil.get_visible_len(inputted[-1:])
+                    inputted = inputted[:-1]
+            elif len(typed) > 0:
+                if typed[0] in (10, 13):
                     if len(inputted) > 0:
-                        input_cursor_x -= charutil.get_visible_len(
-                            inputted[-1:])
-                        inputted = inputted[:-1]
-                elif unicodedata.category(text[0]) != "Cc":
-                    inputted += text
-                    input_cursor_x += charutil.get_visible_len(text)
-                else:
-                    control_char = typed[0]
-                    if control_char == curses.ascii.LF:
-                        ochinko.ensure_future(self.get_channel(
-                            606107143879524374).send(inputted))
+                        ochinko.ensure_future(
+                            channels[sel_chn_idx].send(inputted))
                         inputted = ""
                         input_cursor_x = 0
+                else:
+                    text = typed.decode()
+                    inputted += text
+                    input_cursor_x += charutil.get_visible_len(text)
 
-            ########### SCREEN ############
+            # -------------------------
+            #      Screen Update
+            # -------------------------
+
             # ----- Erase
             read_win.erase()
             write_win.erase()
@@ -119,15 +141,29 @@ class UnifiedCLIClient(discord.Client):
             header_win.bkgdset(" ", self.screen.get_color_pair(1))
 
             # ----- Screen Drawing
+
+            # --- Header
             header_win.addstr(0, 0, self.guilds[0].name)
-            write_win.addstr(1, 1, inputted)
+
+            # --- Textbox (ish)
+
+            cutted = charutil.right_visibility(root_w - 2, inputted)
+            cutted_len = charutil.get_visible_len(
+                inputted) - charutil.get_visible_len(cutted)
+
+            write_win.addstr(1, 1, cutted)
+            write_win.addstr(
+                0, 1, " " + channels[sel_chn_idx].name + " ", curses.A_BOLD)
+
+            if cutted_len > 0:
+                write_win.addstr(1, 0, "<")
+
+            write_win.move(1, 1 + input_cursor_x - cutted_len)
 
             # --- Message
-            sumup, messages = self.calc_visible_message(
-                root_w - 2, root_h - 4, pad=2)
+            messages = self.calc_visible_message(root_w - 2, root_h - 4, pad=2)
 
             y = 1
-            write_win.addstr(0, 0, str(len(messages)))
             for message in messages:
                 read_win.addstr(y, 1, message.channel.name)
                 lines = charutil.get_wrapped(root_w - 2, message.content)
@@ -143,14 +179,12 @@ class UnifiedCLIClient(discord.Client):
 
             # ----- Screen Updating
 
-            write_win.move(1, 1 + input_cursor_x)
-
             header_win.refresh()
             read_win.refresh()
             write_win.refresh()
 
             # ----- Cleaning up
-            await ochinko.sleep(1 / 30)
+            await ochinko.sleep(1 / 10)
 
     async def on_error(self, event_method, *args, **kwargs):
         e = sys.exc_info()
@@ -158,6 +192,12 @@ class UnifiedCLIClient(discord.Client):
         self.screen.put_str((0, height - 1), e[1])
 
     # ----- Utility Functions -----
+
+    def get_available_channel(self):
+        channels = self.get_all_channels()
+        availables = filter(lambda x: isinstance(
+            x, discord.TextChannel), channels)
+        return list(availables)
 
     def calc_visible_message(self, width, height, pad=1):
         """
@@ -181,8 +221,4 @@ class UnifiedCLIClient(discord.Client):
             if len(height_comsum) == i or height_comsum[i] > height:
                 break
 
-        # 最初のメッセージですでに飛び出している
-        if i == 0:
-            return -1, []
-        else:
-            return height_comsum[i - 1], cached_mes[:i][::-1]
+        return cached_mes[: i][:: -1]

@@ -28,3 +28,22 @@ def get_wrapped(width, string):
             text[len(text) - 1] += char
 
     return text
+
+
+def right_visibility(width, string):
+    """
+    表示上での長さをもとに、文字列の左端を切り取る。
+
+    :param width: 表示上での長さ。
+    :param string: 切り取る文字列。
+    """
+
+    i = 1
+    for i in range(1, len(string) + 2):
+        if i == len(string) + 1 or get_visible_len(string[-i-1:]) > width:
+            break
+
+    if i == len(string) + 1:
+        return string[-i:]
+    else:
+        return string[-i:]

@@ -15,26 +15,23 @@ class Screen():
     EDIT_TYPED = 3
 
     def __init__(self):
-        """
-        初期化と合わせて、アプリケーション終了時に
-        Cursesライブラリの非初期化を行うように
-        スケジュールする。
-        """
-        self.console = curses.initscr()
         self.terminated = False
-        self.__initialize()
-        self.console.keypad(True)
-        atexit.register(self.terminate)
-        locale.setlocale(locale.LC_ALL, "")
 
-    def __initialize(self):
+    def initialize(self, term_at_exit=True):
         """
-        Cursesライブラリの初期化を行う。
-        勝手に呼び出されるので人民は呼び出さなくていい
+        Cursesライブラリの初期化を行い、
+        アプリケーション終了時の非初期化をスケジュールする。
+
+        :param term_at_exit: 終了時の非初期化をスケジュールするかどうか。Falseは非推奨。
         """
+
+        self.console = curses.initscr()
+
         curses.noecho()
         curses.raw()
         curses.cbreak()
+
+        self.console.keypad(True)
 
         curses.start_color()
 
@@ -44,6 +41,10 @@ class Screen():
 
         for i in range(len(color_pairs)):
             curses.init_pair(i + 1, color_pairs[i][0], color_pairs[i][1])
+
+        if term_at_exit:
+            atexit.register(self.terminate)
+            locale.setlocale(locale.LC_ALL, "")
 
     def terminate(self):
         """
