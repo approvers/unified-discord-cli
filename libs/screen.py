@@ -4,15 +4,11 @@ import curses.ascii
 import locale
 
 
+# noinspection PyMethodMayBeStatic
 class Screen:
     """
     スクリーン関連の処理を楽にするためのクラス
     """
-
-    EDIT_NOTHING_TYPED = 0
-    EDIT_INVALID_TYPED = 1
-    EDIT_BACKSPACE = 2
-    EDIT_TYPED = 3
 
     def __init__(self):
         self.terminated = False

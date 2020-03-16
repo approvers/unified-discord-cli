@@ -84,7 +84,6 @@ class UnifiedCLIClient(discord.Client):
         channels = self.get_available_channel()
         sel_chn_idx = 0
 
-        i = 0
         while True:
 
             # -------------------------
