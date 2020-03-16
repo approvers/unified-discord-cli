@@ -1,9 +1,8 @@
-import asyncio as ochinko
+import asyncio
 import atexit
 import curses
 import locale
 import sys
-import unicodedata
 
 import discord
 
@@ -24,7 +23,7 @@ class UnifiedCLIClient(discord.Client):
         self.__connected = False
         self.__logged = False
 
-        self.loop = ochinko.get_event_loop()
+        self.loop = asyncio.get_event_loop()
 
         atexit.register(self.terminate)
 
@@ -44,11 +43,11 @@ class UnifiedCLIClient(discord.Client):
         self.__logged = True
 
         self.screen.put_x_center(6, "Connecting to the Server...")
-        ochinko.ensure_future(self.connect())
+        asyncio.ensure_future(self.connect())
 
         # on_ready() 関数でこのフラグの値が変わります
         while not self.__connected:
-            await ochinko.sleep(0.2)
+            await asyncio.sleep(0.2)
 
         self.screen.console.clear()
 
@@ -81,7 +80,6 @@ class UnifiedCLIClient(discord.Client):
         self.screen.console.refresh()
 
         inputted = ""
-        input_cursor_x = 0
 
         channels = self.get_available_channel()
         sel_chn_idx = 0
@@ -113,19 +111,16 @@ class UnifiedCLIClient(discord.Client):
                 elif input_chr == curses.KEY_DOWN and sel_chn_idx < len(channels) - 1:
                     sel_chn_idx += 1
                 elif input_chr == curses.KEY_BACKSPACE:
-                    input_cursor_x -= charutil.get_visible_len(inputted[-1:])
                     inputted = inputted[:-1]
             elif len(typed) > 0:
                 if typed[0] in (10, 13):
                     if len(inputted) > 0:
-                        ochinko.ensure_future(
+                        asyncio.ensure_future(
                             channels[sel_chn_idx].send(inputted))
                         inputted = ""
-                        input_cursor_x = 0
                 else:
                     text = typed.decode()
                     inputted += text
-                    input_cursor_x += charutil.get_visible_len(text)
 
             # -------------------------
             #      Screen Update
@@ -148,24 +143,21 @@ class UnifiedCLIClient(discord.Client):
             # --- Textbox (ish)
 
             cutted = charutil.right_visibility(root_w - 2, inputted)
-            cutted_len = charutil.get_visible_len(
-                inputted) - charutil.get_visible_len(cutted)
 
             write_win.addstr(1, 1, cutted)
-            write_win.addstr(
-                0, 1, " " + channels[sel_chn_idx].name + " ", curses.A_BOLD)
+            write_win.addstr(0, 1, " " + channels[sel_chn_idx].name + " ", curses.A_BOLD)
 
-            if cutted_len > 0:
+            if inputted != cutted:
                 write_win.addstr(1, 0, "<")
 
-            write_win.move(1, 1 + input_cursor_x - cutted_len)
+            write_win.move(1, 1 + charutil.get_visible_len(cutted))
 
             # --- Message
             messages = self.calc_visible_message(root_w - 2, root_h - 4, pad=2)
 
             y = 1
             for message in messages:
-                read_win.addstr(y, 1, message.channel.name)
+                read_win.addstr(y, 1, message.channel.name + " / " + message.author.name)
                 lines = charutil.get_wrapped(root_w - 2, message.content)
 
                 read_win.hline(y - 1, 0, "-", root_w)
@@ -184,7 +176,7 @@ class UnifiedCLIClient(discord.Client):
             write_win.refresh()
 
             # ----- Cleaning up
-            await ochinko.sleep(1 / 10)
+            await asyncio.sleep(1 / 30)
 
     async def on_error(self, event_method, *args, **kwargs):
         e = sys.exc_info()
@@ -195,9 +187,9 @@ class UnifiedCLIClient(discord.Client):
 
     def get_available_channel(self):
         channels = self.get_all_channels()
-        availables = filter(lambda x: isinstance(
+        available = filter(lambda x: isinstance(
             x, discord.TextChannel), channels)
-        return list(availables)
+        return list(available)
 
     def calc_visible_message(self, width, height, pad=1):
         """
@@ -211,10 +203,8 @@ class UnifiedCLIClient(discord.Client):
 
         cached_mes = list(self.cached_messages).copy()
         cached_mes.reverse()
-        cached_mes_heights = [len(charutil.get_wrapped(
-            width, x.content)) + pad for x in cached_mes]
-        height_comsum = [sum(cached_mes_heights[:i+1])
-                         for i in range(len(cached_mes_heights))]
+        cached_mes_heights = [len(charutil.get_wrapped(width, x.content)) + pad for x in cached_mes]
+        height_comsum = [sum(cached_mes_heights[:i+1]) for i in range(len(cached_mes_heights))]
 
         i = 0
         for i in range(len(height_comsum) + 1):

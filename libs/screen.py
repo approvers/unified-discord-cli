@@ -4,7 +4,7 @@ import curses.ascii
 import locale
 
 
-class Screen():
+class Screen:
     """
     スクリーン関連の処理を楽にするためのクラス
     """
@@ -16,6 +16,7 @@ class Screen():
 
     def __init__(self):
         self.terminated = False
+        self.console = None
 
     def initialize(self, term_at_exit=True):
         """
@@ -55,7 +56,7 @@ class Screen():
 
         if self.terminated:
             return
-        self.termnated = True
+        self.terminated = True
 
         self.console.keypad(0)
         curses.nocbreak()
@@ -64,7 +65,6 @@ class Screen():
         curses.endwin()
 
         atexit.unregister(self.terminate)
-        print("Terminated!")
 
     def __del__(self):
         atexit.unregister(self.terminate)
