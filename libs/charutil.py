@@ -15,3 +15,16 @@ def get_visible_len(string):
         else:
             length += 1
     return length
+
+
+def get_wrapped(width, string):
+
+    # リスト内包で行けるかと思ったら全角文字に対応できませんでした :/
+    text = []
+    for char in string:
+        if len(text) == 0 or get_visible_len(text[-1:][0] + char) > width:
+            text.append(char)
+        else:
+            text[len(text) - 1] += char
+
+    return text

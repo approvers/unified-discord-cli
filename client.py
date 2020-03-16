@@ -122,6 +122,25 @@ class UnifiedCLIClient(discord.Client):
             header_win.addstr(0, 0, self.guilds[0].name)
             write_win.addstr(1, 1, inputted)
 
+            # --- Message
+            sumup, messages = self.calc_visible_message(
+                root_w - 2, root_h - 4, pad=2)
+
+            y = 1
+            write_win.addstr(0, 0, str(len(messages)))
+            for message in messages:
+                read_win.addstr(y, 1, message.channel.name)
+                lines = charutil.get_wrapped(root_w - 2, message.content)
+
+                read_win.hline(y - 1, 0, "-", root_w)
+
+                read_win.addstr(y, 10, str(len(lines)))
+
+                for i in range(len(lines)):
+                    read_win.addstr(y + i + 1, 1, lines[i])
+
+                y += len(lines) + 2
+
             # ----- Screen Updating
 
             write_win.move(1, 1 + input_cursor_x)
@@ -137,3 +156,33 @@ class UnifiedCLIClient(discord.Client):
         e = sys.exc_info()
         width, height = self.screen.get_size()
         self.screen.put_str((0, height - 1), e[1])
+
+    # ----- Utility Functions -----
+
+    def calc_visible_message(self, width, height, pad=1):
+        """
+        メッセージ表示に必要な行数を計算し、
+        画面に収まりきるメッセージの配列を返す。
+
+        :self width: 表示領域の横幅。
+        :self height: 表示領域の縦幅。
+        :self pad: [デフォ値=1] 計算補正値。
+        """
+
+        cached_mes = list(self.cached_messages).copy()
+        cached_mes.reverse()
+        cached_mes_heights = [len(charutil.get_wrapped(
+            width, x.content)) + pad for x in cached_mes]
+        height_comsum = [sum(cached_mes_heights[:i+1])
+                         for i in range(len(cached_mes_heights))]
+
+        i = 0
+        for i in range(len(height_comsum) + 1):
+            if len(height_comsum) == i or height_comsum[i] > height:
+                break
+
+        # 最初のメッセージですでに飛び出している
+        if i == 0:
+            return -1, []
+        else:
+            return height_comsum[i - 1], cached_mes[:i][::-1]
